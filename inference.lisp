@@ -9,18 +9,18 @@
 
 
 (defun generate-noisy (f variance n)
-  (let ((y (make-array n :element-type 'double-float))
-        (ti (make-array n :element-type 'double-float)))
+  (let ((ti (make-array n :element-type 'double-float))
+        (y (make-array n :element-type 'double-float)))
     (loop for i from 0 below n
-          do (setf (aref y i) (draw (r-normal (funcall f i) variance)))
-          do (setf (aref ti i) (float  i 0.0d0)))
+          do (setf (aref ti i) (float  i 0.0d0)) 
+          do (setf (aref y i) (draw (r-normal (funcall f i) variance))))
     (make-df '(:time :value) (list ti y))))
 
-(defun example (xi beta ti) (exp (+ (* beta ti) (log xi))))
+(defun example (ti beta) (exp (+ (* beta ti) (log 0.5))))
 
-(defdf data (generate-noisy (curry #'example 0.5 0.1) 10 100))
+(defdf data (generate-noisy (rcurry #'example 0.001) 1 100))
 
-(defun plot-data ()
+(defun plotdata ()
  (plot:plot
   (vega:defplot simple-line-plot
     `(:title "Noisy y data"
@@ -31,25 +31,30 @@
                  :y (:field :value
                      :type  :quantitative))))))
 
+(defun quadrature-2 f interval-1 interval-2)
+
 (defun quadrature-2 (f interval-1 interval-2)
   (romberg-quadrature
-    (lambda (x) (romberg-quadrature (curry f x) interval-2))
-    interval-1))
+    (lambda (x) (romberg-quadrature (curry f x) interval-2 :epsilon 0.0001))
+    interval-1 :epsilon 0.0001))
 
-(defun posterior (f y* ti* beta sigma^2)
-  (let* ((pdf (lambda (y ti beta sigma^2) (normal-pdf y (funcall f beta ti) sigma^2)))
-        (marginal (lambda (y ti)
-                    (quadrature-2 (curry pdf y ti) (interval -1000 1000) (interval -1000 1000))))
-        (likelihood (rcurry pdf sigma^2 beta))
-        (prior (normal-pdf beta 0 1)))
-    (/ (* (product (map 'vector likelihood y* ti*)) prior) (product (map 'vector marginal y* ti*)))))
+(defun posterior (pdf prior data* parameters)
+  (reduce (lambda (prior data)
+            (let* ((pdf (curry pdf data))
+                   (marginal (quadrature-2 pdf (interval 0.11 0.2) (interval 0.1 0.2)))
+                   (likelihood (apply pdf parameters)))
+              (print marginal)
+              (/ (* likelihood prior) marginal)))
+          data*
+          :initial-value prior))
 
+(defun make-normal-over-f (f)
+  (lambda (data sigma^2 &rest parameters)
+    (let ((x (elt data 0))
+          (y (elt data 1)))
+    (normal-pdf y (apply f x parameters) sigma^2))))
 
+(posterior (make-normal-over-f #'example)
+           (normal-pdf 0.1 0 1) (rows data) '(0.001 10))
 
-(defun likelihood (y ti beta sigma^2)
-  (normal-pdf y (f beta ti) sigma^2))
-
-(defun prior (beta &optional (mu 0) (gamma 1))
-  (normal-pdf beta mu gamma))
-
-(defun marginal )
+(defun i)
