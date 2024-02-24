@@ -17,7 +17,7 @@
  
 (defun post (beta sigma^2)
  (posterior (make-normal-pdf-over-f #'example)
-           (normal-pdf 0.1 0.0 1.0) (vector beta sigma^2) (rows data)))
+           (normal-pdf beta 0.0 1.0) (vector beta sigma^2) (rows data)))
 
 (plot:plot
     (vega:defplot simple-line-plot
