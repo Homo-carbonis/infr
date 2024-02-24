@@ -1,6 +1,8 @@
 (require 'utils/misc)
 (require 'alexandria)
 (require 'plot/vega)
+(require 'drom/raster)
+
 (defpackage :infr
   (:use :cl :utils/misc :lisp-stat :plot :num-utils))
 
@@ -31,19 +33,35 @@
                  :y (:field :value
                      :type  :quantitative))))))
 
-(defun quadrature-2 f interval-1 interval-2)
+(defun quadrature-2 (f interval-1 interval-2 &optional (epsilon 0.001))
+  (loop for i from (num-utils:left interval-1) below (num-utils:right interval-1) by epsilon
+        sum (loop for j from (num-utils:left interval-2) below (num-utils:right interval-2) by epsilon
+              sum (* epsilon (funcall f i j)))))
 
-(defun quadrature-2 (f interval-1 interval-2)
-  (romberg-quadrature
-    (lambda (x) (romberg-quadrature (curry f x) interval-2 :epsilon 0.0001))
-    interval-1 :epsilon 0.0001))
+(defun posterior (pdf prior parameters)
+  (let ((marginal (quadrature-2 pdf (interval 0.5 1.5) (interval -1.0 1.0)))
+        (likelihood (apply pdf parameters)))
+              (format t "prior: ~a, likelihood: ~a, marginal: ~a~%" prior likelihood marginal)
+              (/ (* likelihood prior) marginal))
+  )
+
+(defun posterior (pdf prior data* parameters)
+  (product a )
+  (reduce (lambda (prior data)
+            (let* ((pdf (curry pdf data))
+                   (marginal (quadrature-2 pdf (interval 0.5 1.5) (interval -1.0 1.0)))
+                   (likelihood (apply pdf parameters)))
+              (format t "prior: ~a, likelihood: ~a, marginal: ~a~%" prior likelihood marginal)
+              (/ (* likelihood prior) marginal)))
+          data*
+          :initial-value prior))
 
 (defun posterior (pdf prior data* parameters)
   (reduce (lambda (prior data)
             (let* ((pdf (curry pdf data))
-                   (marginal (quadrature-2 pdf (interval 0.11 0.2) (interval 0.1 0.2)))
+                   (marginal (quadrature-2 pdf (interval 0.5 1.5) (interval -1.0 1.0)))
                    (likelihood (apply pdf parameters)))
-              (print marginal)
+              (format t "prior: ~a, likelihood: ~a, marginal: ~a~%" prior likelihood marginal)
               (/ (* likelihood prior) marginal)))
           data*
           :initial-value prior))
@@ -55,6 +73,4 @@
     (normal-pdf y (apply f x parameters) sigma^2))))
 
 (posterior (make-normal-over-f #'example)
-           (normal-pdf 0.1 0 1) (rows data) '(0.001 10))
-
-(defun i)
+           (normal-pdf 0.1 0.0 1.0) (rows data) '(1 0.001))
