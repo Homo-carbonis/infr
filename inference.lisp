@@ -4,20 +4,20 @@
 (require 'drom/raster)
 
 (defpackage :infr
-  (:use :cl :utils/misc :lisp-stat :plot :num-utils :drom/raster :drom/interval))
+  (:shadowing-import-from :num-utils :product :left :right)
+  (:use :cl :utils/misc :lisp-stat :plot :num-utils)
+  (:export :generate-noisy :posterior :make-normal-pdf-over-f))
 
 (in-package :infr)
-(defparameter plot:*default-browser-command* :chrome-app-mode)
 
-
-(defun generate-noisy (f variance n)
-  (let ((ti (make-array n :element-type 'double-float))
-        (y (make-array n :element-type 'double-float)))
+(defun generate-noisy (dx/dt xi variance n)
+  (let ((ti* (make-array n :element-type 'double-float))
+        (y* (make-array n :element-type 'double-float)))
     (loop for i from 0 below n
-          do (setf (aref ti i) (float  i 0.0d0)) 
-          do (setf (aref y i) (draw (r-normal (funcall f i) variance))))
-    (make-df '(:time :value) (list ti y))))
-
+          for y = xi then (+ y (draw (r-normal (funcall dx/dt y) variance)))
+          do (setf (aref ti* i) (float  i 0.0d0)) 
+          do (setf (aref y* i) y))
+    (make-df '(:time :value) (list ti* y*))))
 
 (defun posterior (pdf prior parameters data*)
   (reduce (lambda (prior data)
