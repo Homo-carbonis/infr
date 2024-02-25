@@ -1,47 +1,57 @@
 (defpackage :example
-  (:use :cl :infr))
-(defun example (beta ti) (exp (+ (* (first-elt beta) ti) (log 0.5))))
+  (:use :cl :infr :lisp-stat))
 
-(defdf data (generate-noisy (curry #'example #(0.001)) 1 100))
+(in-package :example)
 
-(defun plotdata ()
- (plot:plot
-  (vega:defplot simple-line-plot
-    `(:title "Noisy y data"
-      :data (:values ,data)
-      :mark :line
-      :encoding (:x (:field :time
-                     :type  :quantitative)
-                 :y (:field :value
-                     :type  :quantitative))))))
- 
-(defun post (beta sigma^2)
- (posterior (make-normal-pdf-over-f #'example)
-           (normal-pdf beta 0.0 1.0) (vector beta sigma^2) (rows data)))
+(defun dx/dt (beta x) (* beta x))
 
-(plot:plot
+(defun generate-data (xi beta sigma n)
+  (defdf data (generate-noisy (curry #'dx/dt beta) xi sigma n))
+  (plot:plot
     (vega:defplot simple-line-plot
       `(:title "Noisy y data"
         :data (:values ,data)
         :mark :line
-        :encoding (:x (:field :value
+        :encoding (:x (:field :time
                        :type  :quantitative)
-                   :y (:field :time
-                       :type  :quantitative)))))
-
-(let* ((beta* (make-array 2000 :element-type 'double-float))
-      (p* (make-array 2000 :element-type 'double-float))
-      (_ (loop for beta from -0.01d0 below 0.01d0 by 0.0001d0
-              for i upfrom 0
-              do (setf (aref beta* i) beta) 
-              do (setf (aref p* i) (post beta 1)) ))
-      (beta-dist (make-df '(:beta :p) (list beta* p*))))
-  (plot:plot
-    (vega:defplot simple-line-plot
-      `(:title "Noisy y data"
-        :data (:values ,beta-dist)
-        :mark :line
-        :encoding (:x (:field :beta
-                       :type  :quantitative)
-                   :y (:field :p
+                   :y (:field :value
                        :type  :quantitative))))) )
+ 
+(defun post (beta sigma y*)
+ (posterior-2 (delta-normal-pdf #'dx/dt) beta sigma
+              (normal-pdf beta 0.0 1.0) y*))
+
+(generate-data 1d0 0.04d0 1d0 100)
+(post 0.04 1d0 data:value)
+
+(defun test-1 (test xi beta sigma n)
+  (let* ((data (generate-noisy (curry #'dx/dt beta) xi sigma n)))
+         (post test sigma data:value)))
+
+(defun test (beta sigma)
+  (let* ((beta* (make-array 2000 :element-type 'double-float))
+         (p* (make-array 2000 :element-type 'double-float))
+         (_ (loop for beta from (* -2 beta) below (* 2 beta) by (/ (* 4 beta) 2000)
+                  for i from 0 below 2000
+                  do (setf (aref beta* i) beta) 
+                  do (setf (aref p* i) (post beta sigma data:value))))
+         (beta-dist (make-df '(:beta :p) (list beta* p*))))
+    #++(plot:plot
+      (vega:defplot simple-line-plot
+      `(:title "Data"
+        :data (:values ,data)
+        :mark :line
+        :encoding (:x (:field :time
+                       :type  :quantitative)
+                   :y (:field :value
+                       :type  :quantitative)))))
+    (plot:plot
+      (vega:defplot simple-line-plot
+        `(:title "Beta distribution"
+          :data (:values ,beta-dist)
+          :mark :line
+          :encoding (:x (:field :beta
+                         :type  :quantitative)
+                     :y (:field :p
+                         :type  :quantitative)))))))
+(test 0.04d0 1d0)
