@@ -1,11 +1,11 @@
 (require 'utils/misc)
 (require 'alexandria)
 (require 'plot/vega)
-(require 'trivia)
+(require 'lisp-stat)
 
 (defpackage :infr
   (:shadowing-import-from :num-utils :product :left :right)
-  (:use :cl :utils/misc :lisp-stat :plot :num-utils :trivia)
+  (:use :cl :utils/misc :lisp-stat :plot :num-utils)
   (:export :generate-noisy :posterior :posterior-2 :compose-normal-pdf :delta-normal-pdf))
 
 (in-package :infr)
@@ -29,16 +29,13 @@
 
 ;TODO Redo with arrays. Write posterior-n with tail of y values.
 (defun posterior-2 (pdf beta sigma prior y*)
-  (let* ((deltas (deltas y*))
-         (var (variance deltas))
-         (mu (mean deltas)))
-   (reduce-2 (lambda (prior y1 y2)
+  (reduce-2 (lambda (prior y1 y2)
               (let ((marginal (normal-pdf (- y2 y1) mu var))
                     (likelihood (funcall pdf beta sigma y1 y2)))
                 (format t "y1: ~a y2: ~a, prior: ~a~%" y1 y2 prior)
                 (/ (* likelihood prior) marginal)))
             y*
-            :initial-value prior)))
+            :initial-value prior))
 
 (defun compose-normal-pdf (f)
   (lambda (beta sigma x y)
