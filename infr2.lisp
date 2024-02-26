@@ -2,6 +2,7 @@
 (require 'utils/misc)
 (require 'iterate)
 (require 'serapeum)
+(require 'vgplot)
 
 (defpackage :infr2
   (:shadowing-import-from :num-utils :product :left :right)
@@ -32,7 +33,7 @@
      (funcall marginal likelihood prior y)))
 
 (defun posterior* (model prior beta y &optional (offset 0))
-  (iter (with beta* = (generate (curry #'draw prior) 100))
+  (iter (with beta* = (generate (curry #'draw prior) 1000))
         (for i from offset below (length y))
         (setf (fill-pointer y) (1+ i))
         (for likelihood = (funcall model beta y))
@@ -41,13 +42,17 @@
         (format t "y: ~a, marginal: ~a, post: ~a~%" (elt y i) marginal posterior)
         (finally (return posterior))))
 
-(defun estimate-marginal (model ))
+
+
 
 (defun my-posterior (beta beta^)
   (let* ((dx/dt (lambda (beta x) (* beta x)))
         (y* (simulate-wiener (curry dx/dt beta) 100))
         (model (lambda (beta y) (wiener-pdf (curry dx/dt beta) y)))
         (prior (r-normal)))
+    (vgplot:plot y*)
     (posterior* model prior beta^ y* 1)))
 
-(my-posterior 0.1d0 0.1d0)
+(my-posterior -0.1d0 -0.1d0)
+
+
