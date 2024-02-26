@@ -7,8 +7,7 @@
   (:shadowing-import-from :num-utils :product :left :right)
   (:shadowing-import-from :iter :next :generate :sum)
   (:import-from :serapeum :nlet)
-  (:use :cl :utils/misc :lisp-stat :iter :plot :num-utils)
-  (:export :generate-noisy :posterior :posterior-2 :compose-normal-pdf :delta-normal-pdf))
+  (:use :cl :utils/misc :lisp-stat :iter :plot :num-utils))
 
 (in-package :infr2)
 
@@ -25,19 +24,30 @@
             (setf (aref this i) x))))
 
 (defun wiener-pdf (dx/dt y &key (var 1d0))
-  (normal-pdf (elmt y -1) (+ (elmt y -2) (funcall dx/dt (elt y -2))) var))
+  (normal-pdf (elmt y -1) (+ (elmt y -2) (funcall dx/dt (elmt y -2))) var))
 
-(defun posterior (likelihood prior beta y &key (integrate #'romberg-quadrature))
+(defun posterior (likelihood prior marginal beta y &key (integrate #'romberg-quadrature))
   (/ (* (funcall likelihood beta y) (funcall prior beta))
-     (integrate (lambda (beta) (* (funcall likelihood beta y) (funcall prior beta))))))
+     (funcall marginal likelihood prior y)))
+
+(defun sample-marginal (n)
+  (lambda (likelihood prior y)
+    (mapn (draw prior) 100))
+  )
 
 (defun chain (model prior beta y* &optional (tail 1))
-  (nlet ((chain ((prior prior) (i (+1 tail)))
-                (if (> i (length y*))
-                    (prior beta)
-                    (chain (lambda (beta) (posterior model prior beta (displace y* i))) (1+ i)))))))
+  (nlet chain ((prior prior) (i (1+ tail)))
+    (print (funcall prior beta))
+    (print (displace y* i))
+    (if (> i (length y*))
+        (funcall prior beta)
+        (chain (lambda (beta) (posterior model prior beta (displace y* i))) (1+ i)))))
 
+(defun my-chain (beta)
+  (let* ((dx/dt (lambda (beta x) (* beta x)))
+        (y* (simulate-wiener (curry dx/dt beta) 100))
+        (model (lambda (beta y) (wiener-pdf (curry dx/dt beta) y)))
+        (prior (lambda (beta) (normal-pdf beta 0d0 1d0))))
+    (chain model prior beta y*)))
 
-
-
-(chain (lambda (beta y) (wiener-pdf (curry dy/dx beta))))
+(my-chain 0.1)
