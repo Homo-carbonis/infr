@@ -5,10 +5,9 @@
 (require 'vgplot)
 
 (defpackage :infr2
-  (:shadowing-import-from :num-utils :product :left :right)
-  (:shadowing-import-from :array-operations :generate)
+  (:shadowing-import-from :lisp-stat :product :next :sum :generate)
   (:import-from :serapeum :nlet)
-  (:use :cl :utils/misc :lisp-stat :iter :num-utils))
+  (:use :cl :utils/misc :lisp-stat :iter))
 
 (in-package :infr2)
 
@@ -53,7 +52,7 @@
               (collect (funcall mean beta* :weights weights)))))
 
 (defun model-likelihood (model y &key (offset 0))
-  (geometric-mean (iter (for i from offset below (length y))
+  (mean (iter (for i from offset below (length y))
               (setf (fill-pointer y) i)
               (for samples = (generate (curry model y) 100))
               (collect (normal-pdf (aref y i) (mean samples) (sd samples))))))
@@ -73,9 +72,6 @@
 
 (my-expected 0.1d0 )
 
-(defun mid-mean points
-  ()
-  )
 
 (defun my-post (beta)
   (let* ((dx/dt (lambda (beta x) (* beta x)))
@@ -83,4 +79,5 @@
          (model (lambda (beta y) (step-wiener (curry dx/dt beta) (last-elt y)))))
     #++(vgplot:plot y*)
     (posteriors (vector (curry model 0.0) (curry model 0.1) (curry model 0.2)) #(1/3 1/3 1/3) y* :offset 1)))
+
 (my-post 0.1)
