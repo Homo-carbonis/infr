@@ -35,19 +35,25 @@
      (funcall marginal likelihood prior y)))
 
 ; TODO: write mean reduction for iterate.
-(defun expected (model prior y &key (offset 0))
-  (mean (iter (with beta* = (generate prior 100))
+
+; Use nu.statistics:mean because lisp-stat:mean ignores weights if vector isn't just the right type.
+(defun expected (model prior y &key (offset 0) (beta-samples 100) (y-samples 100) (mean #'nu.statistics:mean))
+  "Find a Monte Carlo estimate of the parameter of a model.
+
+   We draw a large number of samples from 'prior. Then for each sampled value
+   of beta and each value of y generate samples from the model and compute the
+   average squared difference from y. These are then used as weights to
+   calculate an expected value for the parameter beta."
+  (mean (iter (with beta* = (generate prior beta-samples))
               (for i from offset below (length y))
               (setf (fill-pointer y) i)
               (for weights = (iter (for beta in-vector beta*)
-                             (for y^ = (mean (generate (curry model beta y) 100)))
+                             (for y^ = (mean (generate (curry model beta y) y-samples)))
                              (collect (/ 1 (square (- (aref y i) y^))))))
-              ; Use nu.statistics:mean because lisp-stat:mean ignores weights
-              ; if vector isn't just the right type.
-              (collect (nu.statistics:mean beta* :weights weights)))))
+              (collect (funcall mean beta* :weights weights)))))
 
 (defun model-likelihood (model y &key (offset 0))
-  (mean (iter (for i from offset below (length y))
+  (geometric-mean (iter (for i from offset below (length y))
               (setf (fill-pointer y) i)
               (for samples = (generate (curry model y) 100))
               (collect (normal-pdf (aref y i) (mean samples) (sd samples))))))
@@ -66,6 +72,10 @@
     (expected model prior y* :offset 1)))
 
 (my-expected 0.1d0 )
+
+(defun mid-mean points
+  ()
+  )
 
 (defun my-post (beta)
   (let* ((dx/dt (lambda (beta x) (* beta x)))
