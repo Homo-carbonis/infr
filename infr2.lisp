@@ -55,6 +55,18 @@
                              (finally (return (nu.statistics:mean beta* :weights weights))))))))
 ;; lisp-stat:mean ignores weights if vector isn't just the right type
 
+(defun posterior% (model prior y &optional (offset 0))
+  (mean (iter (with beta* = (generate (curry #'draw prior) 100))
+              (for i from offset below (length y))
+              (setf (fill-pointer y) i)
+              (for weights = (iter (for beta in-vector beta*)
+                                   (for y^ = (mean (generate (curry model beta y) 100)))
+                                   (collect (/ 1 (square (- (aref y i) y^))))))
+              for beta^ = (mean beta* :weights weights)
+              (map-array beta* (/ 1 (square (- (aref beta* i) beta^))))
+              (collect beta^)
+              )))
+
 (defun my-expected (beta)
   (let* ((dx/dt (lambda (beta x) (* beta x)))
         (y* (simulate (curry #'step-wiener (curry dx/dt beta)) 100))
