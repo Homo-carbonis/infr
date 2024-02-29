@@ -50,11 +50,10 @@
                                  (summing (square (- (aref y i) y^)))))
                 (vector-mean beta weight (/ 1 dev))))))
 
-(defun model-likelihood (model y &key (offset 0))
-  (exp (iter (for i from offset below (length y))
-             (setf (fill-pointer y) i)
-             (for samples = (generate (curry model y) 100))
-             (summing (log (normal-pdf (aref y i) (mean samples) (sd samples)))))))
+(defun model-likelihood (model y &key (offset 0) (chain-count 100))
+  (generate (curry #'simulate model (length y) :xi (elt y 0) chain-count)
+  (eexpt (e- y (simulate model (length y) :xi (elt y 0))) 2)
+  
 
 (defun posteriors (models priors y &key (offset 0))
   (let* ((joint* (each (lambda (m p) (* p (model-likelihood m y :offset offset))) models priors))
@@ -79,4 +78,4 @@
     #++(vgplot:plot y*)
     (posteriors (vector (curry model 0.09) (curry model 0.1) (curry model 0.11)) #(1/3 1/3 1/3) y* :offset 1)))
 
-(my-post 0.205d0)
+(my-post 0.101d0)
