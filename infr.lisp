@@ -25,7 +25,8 @@
 
 (defun generate-brownian-chain (f n &key (xi #(0d0)) (var 1d0))
   (generate-chain (lambda (x)
-                     (+ (funcall f x) (draw (r-normal 0d0 var)))) n :xi xi))
+                     (+ (funcall f x) (draw (r-normal 0d0 var))))
+                  n :xi xi))
 
 
 ; Possibly we should weight the mean by magnitude of y in some way?
