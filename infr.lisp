@@ -36,7 +36,7 @@
    of beta and each value of y generate samples from the model and compute the
    average squared difference from y. These are then used as weights to
    calculate an expected value for the parameter beta."
-  (iter (with beta* = (generate prior beta-sample-count))
+  (iter (with beta* = (generate (lambda () (each #'draw prior)) beta-sample-count))
         (for i from offset below (length y)) 
         (setf (fill-pointer y) i) ; we pass y up to but not including element i to the model function.
         (vector-mean
