@@ -20,7 +20,8 @@
                               :fill-pointer offset))
         (initially (adjust-array x n))
         (for i from offset below n)
-        (vector-push (funcall f x) x)))
+        (vector-push (funcall f x) x)
+        (finally (return x))))
 
 (defun generate-brownian-chain (f n &key (xi #(0d0)) (var 1d0))
   (generate-chain (lambda (x)
