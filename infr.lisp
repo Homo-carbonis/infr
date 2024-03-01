@@ -36,7 +36,7 @@
    of beta and each value of y generate samples from the model and compute the
    average squared difference from y. These are then used as weights to
    calculate an expected value for the parameter beta."
-  (iter (with beta* = (generate prior beta-sample-count))
+  (iter (with beta* = (generate (lambda () (each #'draw prior)) beta-sample-count))
         (for i from offset below (length y)) 
         (setf (fill-pointer y) i) ; we pass y up to but not including element i to the model function.
         (vector-mean
@@ -45,14 +45,14 @@
                                  (summing (square (- (aref y i) y^)))))
                 (vector-mean beta weight (/ 1 dev))))))
 
-(defun likelihood (model y &key (offset 0))
+(defun likelihood (model y &key (offset 1))
   "Estimate P(y|model), assuming a normal distribution."
   (iter (for i from offset below (length y))
         (setf (fill-pointer y) i)
         (for samples = (generate (curry model y) 100))
         (multiply (normal-pdf (aref y i) (mean samples) (sd samples)))))
 
-(defun posteriors (models priors y &key (offset 0))
+(defun posteriors (models priors y &key (offset 1))
   "Assign relative probabilities to each of models"
   (let* ((joint* (each (lambda (m p) (* p (likelihood m y :offset offset))) models priors))
          (marginal (sum joint*)))
