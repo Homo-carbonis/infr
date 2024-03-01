@@ -8,21 +8,27 @@
   (:shadowing-import-from :lisp-stat :product :next :sum :generate :mean)
   (:import-from :serapeum :nlet)
   (:use :cl :utils/misc :iter-utils :lisp-stat :iter)
-  (:export :generate-wiener :generate-markov :step-wiener :estimate-parameters :likelihood :posteriors))
+  (:export :generate-wiener :generate-chain :generate-brownian-chain :estimate-parameters :likelihood :posteriors))
 
 (in-package :infr)
 
-(defun generate-markov (f n &key (xi 0d0))
-  (on (make-array n :element-type 'double-float :fill-pointer t)
-      (iter (for x first xi then (funcall f x))
-            (for i below n)
-            (setf (aref this i) x))))
+(defun generate-chain (f n &key (xi #(0d0)))
+  (iter (with offset = (length xi))
+        (with x = (make-array offset
+                              :initial-contents xi
+                              :element-type 'double-float
+                              :fill-pointer offset))
+        (initially (adjust-array x n))
+        (for i from offset below n)
+        (vector-push (funcall f x) x)))
 
-(defun step-wiener (dx/dt x &key (var 1d0))
-  (+ x (funcall dx/dt x) (draw (r-normal 0d0 var))))
+(defun generate-brownian-chain (f n &key (xi #(0d0)) (var 1d0))
+  (generate-chain (lambda (x)
+                     (+ (funcall f x) (draw (r-normal 0d0 var)))) n :xi xi))
+
 
 ; Possibly we should weight the mean by magnitude of y in some way?
-(defun estimate-parameters (model prior y &key (offset 0) (beta-sample-count 100) (y-sample-count 100) )
+(defun estimate-parameters (model prior y &key (offset 1) (beta-sample-count 100) (y-sample-count 100) )
   "Find a Monte Carlo estimate of the parameter of a model.
    We draw a large number of samples from 'prior. Then for each sampled value
    of beta and each value of y generate samples from the model and compute the
