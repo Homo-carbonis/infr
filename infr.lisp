@@ -46,19 +46,18 @@
 
 (defun log-marginal (model prior y &key (offset 2) (sample-count 100))
   "Find log P(y|model)."
-  ; We factor out the first term to compute the arithmetic mean from logs.
+  ;; We factor out the first term, likelihood0, to compute the arithmetic mean
+  ;; from logs, weighted by 1/prior.
   (iter (with beta* = (generate (lambda () (each #'draw prior)) sample-count))
-        (with beta0 = (elt beta* 0))
-        (with p0 = (log-pdf* prior beta0))
-        (with w0 = (+ (* 2 p0)
-                      (log-likelihood model beta0 y :offset offset))) ;term factored out of sum.
+        (with likelihood0 = (log-likelihood model (elt beta* 0) y :offset offset))
         (for beta in-vector beta*)
-        (for p first p0 then (log-pdf* prior beta))
-        (for r first 1d0 then (exp (- (+ (* 2 p) (log-likelihood model beta y :offset offset))
-                                      w0)))
-        (summing r into s)
-        (summing (exp p) into weight)
-        (finally (return (+ (- (log weight)) w0 (log (+ 1 s)))))))
+        (for term first 1d0
+             then (exp (- (log-likelihood model beta y :offset offset)
+                          likelihood0)))
+        (summing term into sum)
+        (summing (pdf* prior beta) into weight) ; actually inverse weight
+        ;(format t "beta:~a prior:~a term:~a~%" beta (pdf* prior beta) term)
+        (finally (return (+ (log weight) likelihood0 (log (+ 1 sum)))))))
 
 (defun log-mean ())
 
@@ -73,14 +72,12 @@
         (summing (log-pdf rv x))))
 
 (defun log-posterior (model prior beta y &key (offset 2) (sample-count 100))
+  "Calculate log p(beta| model, y)"
   (let ((likelihood (log-likelihood model beta y))
         (prior (log-pdf* prior beta))
         (marginal (log-marginal model prior y :sample-count sample-count)))
-    (print likelihood)
-    (print prior)
-    (print marginal)
-    (exp (+ likelihood prior 
-            (- marginal)))))
+    (+ likelihood prior 
+       (- marginal))))
 
 (defun posteriors (models priors y &key (offset 2))
   "Assign relative probabilities to each of models"
