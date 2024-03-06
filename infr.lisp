@@ -8,7 +8,7 @@
   (:shadowing-import-from :lisp-stat :product :next :sum :generate :mean)
   (:import-from :serapeum :nlet)
   (:use :cl :utils/misc :iter-utils :lisp-stat :iter)
-  (:export :generate-markov-chain :estimate-parameters :likelihood :marginal :posterior :posteriors))
+  (:export :generate-markov-chain :estimate-parameters :log-likelihood :log-marginal :log-posterior :posteriors))
 
 (in-package :infr)
 
