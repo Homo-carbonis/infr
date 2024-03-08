@@ -6,7 +6,7 @@
 
 (defpackage :infr
   (:shadowing-import-from :lisp-stat :product :next :sum :generate :mean)
-  (:import-from :serapeum :nlet)
+  (:import-from :serapeum :nlet :with-boolean :boolean-if)
   (:use :cl :utils/misc :iter-utils :lisp-stat :iter)
   (:export :generate-markov-chain :estimate-parameters :log-likelihood :log-marginal :log-posterior :posteriors))
 
@@ -45,19 +45,37 @@
         (finally (incf (fill-pointer y)))))
 
 (defun log-marginal (model prior y &key (offset 2) (sample-count 100))
-  "Find log P(y|model)."
+  "Estimate log P(y|model). We take a random sample of beta and use it to estimate the integral of P(y|beta)P(beta) over beta."
   ;; We factor out the first term, likelihood0, to compute the arithmetic mean
   ;; from logs, weighted by 1/prior.
   (iter (with beta* = (generate (lambda () (each #'draw prior)) sample-count))
+        (with volume = (iter (for i in (length (elt beta* 0)))))
         (with likelihood0 = (log-likelihood model (elt beta* 0) y :offset offset))
         (for beta in-vector beta*)
         (for term first 1d0
              then (exp (- (log-likelihood model beta y :offset offset)
                           likelihood0)))
         (summing term into sum)
-        (summing (pdf* prior beta) into weight) ; actually inverse weight
-        ;(format t "beta:~a prior:~a term:~a~%" beta (pdf* prior beta) term)
-        (finally (return (+ (log weight) likelihood0 (log (+ 1 sum)))))))
+        (summing (/ 1 (pdf* prior beta)) into weight)
+        (finally
+          (return (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum))))))
+#++
+(defun log-marginal (model prior y &key (offset 2) (sample-count 100))
+  "Estimate log P(y|model). We take a random sample of beta and use it to estimate the integral of P(y|beta)P(beta) over beta."
+  ;; We factor out the first term, likelihood0, to compute the arithmetic mean
+  ;; from logs, weighted by 1/prior.
+  (iter (with beta* = (generate (lambda () (each #'draw prior)) sample-count))
+        (with likelihood0 = (log-likelihood model (elt beta* 0) y :offset offset))
+        (for beta in-vector beta*)
+        (for likelihood  (log-likelihood model beta y :offset offset))
+        (for pri = (pdf* prior beta))
+        (for joint = (+ likelihood pri))
+        (for term first 1d0
+             then (exp (- likelihood likelihood0)))
+        (summing term into sum)
+        (summing pri into weight) ; actually inverse of weight
+        (finally
+          (return (+ (log weight) likelihood0 (log (+ 1 sum)))))))
 
 (defun log-mean ())
 
@@ -73,14 +91,17 @@
 
 (defun log-posterior (model prior beta y &key (offset 2) (sample-count 100))
   "Calculate log p(beta| model, y)"
-  (let ((likelihood (log-likelihood model beta y))
+  (let ((likelihood (log-likelihood model beta y :offset offset))
         (prior (log-pdf* prior beta))
-        (marginal (log-marginal model prior y :sample-count sample-count)))
+        (marginal (log-marginal model prior y :offset offset
+                                :sample-count sample-count)))
     (+ likelihood prior 
        (- marginal))))
 
+
 (defun posteriors (models priors y &key (offset 2))
   "Assign relative probabilities to each of models"
+  ;Old
   (let* ((joint* (each (lambda (m p) (* p (likelihood m y :offset offset))) models priors))
          (marginal (sum joint*)))
     (e/ joint* marginal)))
