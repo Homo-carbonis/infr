@@ -7,11 +7,6 @@
   (:use :cl :infr :lisp-stat :polisher :iterate))
 (in-package :infr-example)
 (polisher:activate-infix-syntax) 
-(defun van-der-pol (mu sigma x)
-  (let ( (h 1d-3)
-        (x1 (elmt x -2))
-        (x2 (elmt x -1)))
-    (r-normal #i{(h* mu * x1 * x2**2 + (4 -2*h**2)*x2 - (h*mu +2) * x1) / (h*mu*x2**2 -h*mu+2)} sigma )))
 
 (defun van-der-pol (mu sigma x)
   (let ( (h 1d-3)
@@ -32,6 +27,10 @@
                           2d0
                           y
                           :sample-count 50))
+
+(exp (infr::log-likelihood f 
+                          2d0
+                          y))
 
 
 (defparameter mu (linspace 0d0 5d0 100))
