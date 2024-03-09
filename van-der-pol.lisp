@@ -1,6 +1,6 @@
 (require 'polisher)
+(require 'plot/vega)
 (defpackage :infr-example
-  (:import-from :misc-utils :elmt)
   (:import-from :misc-utils :elmt)
   (:shadowing-import-from :iterate :next)
   (:shadowing-import-from :lisp-stat :generate :sum)
@@ -18,9 +18,33 @@
 
 (defparameter y (generate-markov-chain (curry #'van-der-pol 2d0 1d-9) 100000 :xi #(0.1d0 0.1d0)))
 (setf (fill-pointer y) (array-total-size y))
+(defdf y-data (make-df '(:y :time) (list y (linspace 0 (1- (length y)) (length y)))))
+(print-data y-data)
+(plot:plot
+  (vega:defplot marginal
+  `(:title "Cell Membrane Potential"
+    :description ""
+    :data (:values ,y-data)
+    :mark :line
+    :encoding (:y (:field :y :type :quantitative)
+               :x (:field :time :type :quantitative)))))
 
-(vgplot:close-all-plots)
-(vgplot:plot y)
+(defdf marginal-data (infr::log-marginal f 
+                    (r-normal 2d0 1d0)
+                    y
+                    :sample-count 50 :plot t))
+
+
+(print-data marginal-data)
+
+(plot:plot
+  (vega:defplot marginal
+  `(:title "Particle estimation of marginal"
+    :description ""
+    :data (:values ,marginal-data)
+    :mark :bar
+    :encoding (:x (:field :beta :type :quantitative)
+               :y (:field :posterior :type :quantitative :stack "none" :scale (:zero :false))))))
 
 (exp (infr::log-posterior f 
                           (r-normal 2d0 1d0)

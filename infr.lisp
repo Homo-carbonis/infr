@@ -7,7 +7,7 @@
 (defpackage :infr
   (:shadowing-import-from :lisp-stat :product :next :sum :generate :sd)
   (:shadowing-import-from :iter-utils :mean)
-  (:import-from :serapeum :nlet :with-boolean :boolean-if)
+  (:import-from :serapeum :nlet :with-boolean :boolean-if :boolean-when)
   (:use :cl :utils/misc :iter-utils :lisp-stat :iter)
   (:export :generate-markov-chain :estimate-parameters :log-likelihood :log-marginal :log-posterior :posteriors))
 
@@ -45,20 +45,26 @@
         (summing (log-pdf (funcall model beta y) (aref y i)))
         (finally (incf (fill-pointer y)))))
 
-(defun log-marginal (model prior y &key (offset 2) (sample-count 100))
+(defun log-marginal (model prior y &key (offset 2) (sample-count 100) plot)
   "Estimate log P(y|model). We take a random sample of beta and use it to estimate the integral of P(y|beta)P(beta) over beta."
   ;; We factor out the first term, likelihood0, to compute the arithmetic mean
   ;; from logs, weighted by 1/prior.
-  (iter (with beta* = (generate (lambda () (draw prior)) sample-count))
-        (with likelihood0 = (log-likelihood model (elt beta* 0) y :offset offset))
-        (for beta in-vector beta*)
-        (for term first 1d0
-             then (exp (- (log-likelihood model beta y :offset offset)
-                          likelihood0)))
-        (summing term into sum)
-        (summing (/ 1 (pdf prior beta)) into weight)
-        (finally
-          (return (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum))))))
+  (with-boolean (plot)
+    (iter (with beta* = (generate (lambda () (draw prior)) sample-count))
+          (with likelihood0 = (log-likelihood model (elt beta* 0) y :offset offset))
+
+          (for beta in-vector beta*)
+          (for likelihood = (log-likelihood model beta y :offset offset) )
+          (for p = (pdf prior beta))
+          (for term first 1d0 then (exp (- likelihood likelihood0)))
+          (summing term into sum)
+          (summing (/ 1 p) into weight)
+          (boolean-if plot (progn (collect (+ (log p) likelihood0) into posteriors
+                                           result-type vector
+                                           )
+                                  (collect (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum)) into estimates result-type vector)
+                                  (finally (return (make-df '(:beta :posterior :estimate) (list beta* posteriors estimates)) )))
+                           (finally (return (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum))))))))
 
 (defun log-posterior (model prior beta y &key (offset 2) (sample-count 100))
   "Calculate log p(beta| model, y)"
