@@ -1,11 +1,8 @@
-(require 'polisher)
-(require 'plot/vega)
-(defpackage :infr-example
-  (:import-from :misc-utils :elmt)
+(defpackage :infr/van-der-pol
   (:shadowing-import-from :iterate :next)
-  (:shadowing-import-from :lisp-stat :generate :sum)
-  (:use :cl :infr :lisp-stat :polisher :iterate))
-(in-package :infr-example)
+  (:shadowing-import-from :lisp-stat :generate :sum :mean)
+  (:use :cl :infr/utils :infr :lisp-stat :polisher :iterate :plot))
+(in-package :infr/van-der-pol)
 (polisher:activate-infix-syntax) 
 
 (defun van-der-pol (mu sigma x)
@@ -66,4 +63,3 @@
                                    y
                                    :sample-count 100)))
                           mu))
-(vgplot:plot mu p[mu])

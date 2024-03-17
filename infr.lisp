@@ -1,14 +1,8 @@
-(require 'lisp-stat)
-(require 'utils)
-(require 'iterate)
-(require 'serapeum)
-(require 'vgplot)
-
 (defpackage :infr
   (:shadowing-import-from :lisp-stat :product :next :sum :generate :sd)
-  (:shadowing-import-from :iter-utils :mean)
+  (:shadowing-import-from :infr/utils :mean)
   (:import-from :serapeum :nlet :with-boolean :boolean-if :boolean-when)
-  (:use :cl :utils/misc :iter-utils :lisp-stat :iter)
+  (:use :cl :infr/utils :lisp-stat :iterate)
   (:export :generate-markov-chain :estimate-parameters :log-likelihood :log-marginal :log-posterior :posteriors))
 
 (in-package :infr)
