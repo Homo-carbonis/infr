@@ -54,8 +54,7 @@
           (summing term into sum)
           (summing (/ 1 p) into weight)
           (boolean-if plot (progn (collect (+ (log p) likelihood0) into posteriors
-                                           result-type vector
-                                           )
+                                           result-type vector)
                                   (collect (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum)) into estimates result-type vector)
                                   (finally (return (make-df '(:beta :posterior :estimate) (list beta* posteriors estimates)) )))
                            (finally (return (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum))))))))
