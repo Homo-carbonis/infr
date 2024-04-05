@@ -8,6 +8,7 @@
 (in-package :infr)
 
 (defun generate-markov-chain (f n &key (xi #(0d0)))
+  "Generate a realization of n elements of the Markov chain defined by f, beginning with xi."
   (iter (with offset = (length xi))
         (with x = (make-array offset
                               :initial-contents xi
