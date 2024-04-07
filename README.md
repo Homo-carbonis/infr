@@ -25,6 +25,8 @@ This reduces computing the Bayesian Likelihood to a simple product.
 
 The marginal likelihood is estimated by a one-step particle filter method. A sample of particles is drawn from the prior distribution and used to estimate the integral.
 
+The method is explained fully in this [article](Bayesian%20Inference%20for%20Dynamical%20Systems.pdf).
+
 ## Reference
 ### generate-markov-chain
 generate-markov-chain f n &key (xi #(0d0))
