@@ -18,6 +18,13 @@ For testing purposes one can generate a vector containing a realisation of a pro
 To compute the log posterior probability density for beta=2.0 given the data sequence y and the model f, with a normal prior:
 ```(log-posterior f (r-normal 0d0 0.5d0) 2d0 y)```.
 
+## Methodoloy
+Infr explots the fact the the joint probability of a realization of a markov chain is equal to the prodduct of the probability of each step.
+𝑃 (𝑥𝑛, 𝑥𝑛−1, …𝑥0) = 𝑃 (𝑥𝑛|𝑥𝑛−1)𝑃 (𝑥𝑛−1 | 𝑥𝑛−2)…𝑃 (𝑥1|𝑥0)𝑃 (𝑥0)
+This reduces computing the Bayesian Likelihood to a simple product.
+
+The marginal likelihood is estimated by a one-step particle filter method. A sample of particles is drawn from the prior distribution and used to estimate the integral.
+
 ## Reference
 ### generate-markov-chain
 generate-markov-chain f n &key (xi #(0d0))
