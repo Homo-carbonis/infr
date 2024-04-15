@@ -29,4 +29,4 @@
                             :sample-count 50))
 
 (format t "P(beta=2 | y) = ~a"
-        (exp (infr::log-posterior f prior 2d0 y :sample-count 100)))
+        (exp (infr::log-posterior f prior #(2d0 1d-9) y :sample-count 100)))
