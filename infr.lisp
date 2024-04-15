@@ -1,7 +1,6 @@
 (defpackage :infr
   (:shadowing-import-from :lisp-stat :product :next :sum :generate :sd)
   (:shadowing-import-from :infr/utils :mean)
-  (:import-from :serapeum :nlet :with-boolean :boolean-if :boolean-when)
   (:use :cl :infr/utils :lisp-stat :iterate)
   (:export :generate-markov-chain :estimate-parameters :log-likelihood :log-marginal :log-posterior :posteriors))
 
@@ -25,12 +24,12 @@
    number of samples from 'prior. Then for each sampled value of beta we find
    P(y|model,beta). Finally we take the mean of the samples using P(y|model,beta)
    as weights, to find an expected value for beta."
-  (iter (with beta* = (generate (lambda () (draw prior)) sample-count))
+  (iter (with beta* = (generate (lambda () (draw* prior)) sample-count))
         (for i from offset below (length y))
         (setf (fill-pointer y) i) ; we pass y up to but not including element i to the model function.
         (mean
           (iter (for beta in-vector beta*)
-                (mean beta with-weight (pdf (funcall model beta y) (aref y i)))))
+                (vector-mean beta with-weight (pdf* (funcall model beta y) (aref y i)))))
         (finally (incf (fill-pointer y))))); Restore fill pointer before returning
 
 (defun log-likelihood (model beta y &key (offset 2))
@@ -40,32 +39,49 @@
         (summing (log-pdf (funcall model beta y) (aref y i)))
         (finally (incf (fill-pointer y)))))
 
-(defun log-marginal (model prior y &key (offset 2) (sample-count 100) plot)
+(defun log-marginal (model prior y &key (offset 2) (sample-count 100))
   "Estimate log P(y|model). We take a random sample of beta and use it to estimate the integral of P(y|beta)P(beta) over beta."
   ;; We factor out the first term, likelihood0, to compute the arithmetic mean
   ;; from logs, weighted by 1/prior.
-  (with-boolean (plot)
-    (iter (with beta* = (generate (lambda () (draw prior)) sample-count))
+  (iter (with beta* = (generate (lambda () (draw* prior)) sample-count))
           (with likelihood0 = (log-likelihood model (elt beta* 0) y :offset offset))
-
           (for beta in-vector beta*)
-          (for likelihood = (log-likelihood model beta y :offset offset) )
-          (for p = (pdf prior beta))
+          (for likelihood = (log-likelihood model beta y :offset offset))
+          (for p = (pdf* prior beta))
           (for term first 1d0 then (exp (- likelihood likelihood0)))
           (summing term into sum)
           (summing (/ 1 p) into weight)
-          (boolean-if plot (progn (collect (+ (log p) likelihood0) into posteriors
-                                           result-type vector)
-                                  (collect (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum)) into estimates result-type vector)
-                                  (finally (return (make-df '(:beta :posterior :estimate) (list beta* posteriors estimates)) )))
-                           (finally (return (+ (- (log weight)) (sample-range beta*) likelihood0 (log sum))))))))
+          (finally (return (+ (- (log weight))
+                              (sample-hypervolume beta*)
+                              likelihood0
+                              (log sum))))))
 
 (defun log-posterior (model prior beta y &key (offset 2) (sample-count 100))
   "Calculate log p(beta| model, y)"
   (let ((likelihood (log-likelihood model beta y :offset offset))
-        (prior (log-pdf prior beta))
+        (prior (log-pdf* prior beta))
         (marginal (log-marginal model prior y :offset offset
                                 :sample-count sample-count)))
     (+ likelihood prior 
        (- marginal))))
 
+(defun pdf* (rv* x*)
+  (product (each (lambda (rv x) (pdf rv x)) rv* x*)))
+
+(defun log-pdf* (rv* x*)
+  (product (each (lambda (rv x) (log-pdf rv x)) rv* x*)))
+
+(defun draw* (distribution)
+  (each #'draw distribution))
+
+(defun min* (a b)
+  (vectorize (a b) (min a b)))
+
+(defun max* (a b)
+  (vectorize (a b) (max a b)))
+
+(defun sample-hypervolume (sequence)
+  "Find the minimum volume containing every sample in a sequence of n-vectors"
+  (let ((min (reduce #'min* sequence))
+        (max (reduce #'max* sequence)))
+    (product (vectorize (max min) (- max min)))))
